@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Security Overview{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <div class="dashboard-header">
+        <h1>
+            <i class="fas fa-chart-line"></i>
+            Security Dashboard
+        </h1>
+        <p>Welcome back, <strong style="color: #60a5fa;">{{ current_user.username }}</strong>! Here's your security overview.</p>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+            <div class="stat-info">
+                <h3>Account Status</h3>
+                <p class="stat-value {% if current_user.is_locked %}text-danger{% else %}text-success{% endif %}">
+                    {% if current_user.is_locked %}
+                        <i class="fas fa-lock"></i> Locked
+                    {% else %}
+                        <i class="fas fa-check-circle"></i> Active
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="stat-info">
+                <h3>Failed Attempts</h3>
+                <p class="stat-value">{{ current_user.failed_attempts }}<span style="font-size: 0.6rem; color: var(--text-secondary); margin-left: 0.25rem;">/ 3</span></p>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+                <i class="fas fa-bell"></i>
+            </div>
+            <div class="stat-info">
+                <h3>Unread Alerts</h3>
+                <p class="stat-value">{{ unread_alerts|length }}</p>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-info">
+                <h3>Last Login</h3>
+                <p class="stat-value small" style="font-size: 0.85rem;">
+                    {% if current_user.last_login %}
+                        {{ current_user.last_login.strftime('%b %d, %H:%M') }}
+                    {% else %}
+                        <span style="color: var(--text-secondary);">First time</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unread Alerts Section -->
+    {% if unread_alerts %}
+    <div class="alerts-section">
+        <h2>
+            <i class="fas fa-bell"></i>
+            <span>Active Security Alerts</span>
+            <span style="background: #ef4444; color: white; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; margin-left: 0.5rem;">{{ unread_alerts|length }}</span>
+        </h2>
+        <div class="alerts-list">
+            {% for alert in unread_alerts %}
+            <div class="alert-item" style="border-left-color: {% if alert.alert_type == 'account_locked' %}#ef4444{% elif alert.alert_type == 'failed_login' %}#f59e0b{% elif alert.alert_type == 'account_unlocked' %}#10b981{% else %}#3b82f6{% endif %};">
+                <div class="alert-content">
+                    <div class="alert-icon" style="color: {% if alert.alert_type == 'account_locked' %}#ef4444{% elif alert.alert_type == 'failed_login' %}#f59e0b{% elif alert.alert_type == 'account_unlocked' %}#10b981{% else %}#3b82f6{% endif %};">
+                        <i class="fas fa-{% if alert.alert_type == 'account_locked' %}lock{% elif alert.alert_type == 'failed_login' %}exclamation-triangle{% elif alert.alert_type == 'account_unlocked' %}unlock{% else %}info-circle{% endif %}"></i>
+                    </div>
+                    <div class="alert-text">
+                        <h4>{{ alert.alert_type.replace('_', ' ').upper() }}</h4>
+                        <p>{{ alert.message }}</p>
+                        <span class="alert-time">
+                            <i class="fas fa-map-marker-alt"></i>
+                            IP: {{ alert.ip_address }} | 
+                            <i class="fas fa-clock"></i>
+                            {{ alert.created_at.strftime('%b %d, %H:%M:%S') }}
+                        </span>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <a href="{{ url_for('mark_alert_read', alert_id=alert.id) }}" class="btn btn-small" style="padding: 0.5rem 1rem; font-size: 0.8rem; background: var(--accent); color: white; border-radius: 8px; text-decoration: none; display: flex; align-items: center; gap: 0.4rem;">
+                        <i class="fas fa-check"></i> Mark Read
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Content Grid: Recent Attempts & All Alerts -->
+    <div class="content-grid">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-history"></i>
+                <h2>Recent Login Attempts</h2>
+            </div>
+            <div class="card-body">
+                {% if recent_attempts %}
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 30%;">Status</th>
+                                <th style="width: 40%;">IP Address</th>
+                                <th style="width: 30%;">Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for attempt in recent_attempts %}
+                            <tr>
+                                <td>
+                                    {% if attempt.success %}
+                                        <span class="badge badge-success">
+                                            <i class="fas fa-check-circle"></i>
+                                            <span>Success</span>
+                                        </span>
+                                    {% else %}
+                                        <span class="badge badge-danger">
+                                            <i class="fas fa-times-circle"></i>
+                                            <span>Failed</span>
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <code style="background: var(--bg-lighter); padding: 0.4rem 0.8rem; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.9rem;">{{ attempt.ip_address }}</code>
+                                </td>
+                                <td style="color: var(--text-light); font-size: 0.9rem;">{{ attempt.timestamp.strftime('%b %d, %H:%M:%S') }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="no-data">
+                    <i class="fas fa-info-circle" style="font-size: 2rem; color: var(--accent); margin-bottom: 0.5rem; display: block; opacity: 0.5;"></i>
+                    <p>No login attempts recorded yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-list-check"></i>
+                <h2>Security Timeline</h2>
+            </div>
+            <div class="card-body">
+                {% if all_alerts %}
+                <div class="alerts-timeline">
+                    {% for alert in all_alerts[:10] %}
+                    <div class="timeline-item {% if not alert.is_read %}unread{% endif %}">
+                        <div class="timeline-marker"></div>
+                        <div class="timeline-content">
+                            <h4 style="color: {% if alert.alert_type == 'account_locked' %}#ef4444{% elif alert.alert_type == 'failed_login' %}#f59e0b{% elif alert.alert_type == 'account_unlocked' %}#10b981{% else %}#3b82f6{% endif %};">
+                                {{ alert.alert_type.replace('_', ' ').title() }}
+                            </h4>
+                            <p>{{ alert.message }}</p>
+                            <span class="timeline-time">
+                                {{ alert.created_at.strftime('%b %d, %H:%M:%S') }} • 
+                                <code style="font-size: 0.7rem;">{{ alert.ip_address }}</code>
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="no-data">
+                    <i class="fas fa-info-circle" style="font-size: 2rem; color: var(--accent); margin-bottom: 0.5rem; display: block; opacity: 0.5;"></i>
+                    <p>No security alerts yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Security Tips -->
+    <div class="security-tips">
+        <h3>
+            <i class="fas fa-shield-check"></i>
+            <span>Your Protection</span>
+        </h3>
+        <ul>
+            <li>
+                <i class="fas fa-check"></i>
+                <strong>Brute Force Protection:</strong> Account locks after 3 failed attempts
+            </li>
+            <li>
+                <i class="fas fa-check"></i>
+                <strong>CAPTCHA Challenges:</strong> Random math problems appear after 2 failures
+            </li>
+            <li>
+                <i class="fas fa-check"></i>
+                <strong>IP Tracking:</strong> All login attempts are logged with timestamps
+            </li>
+            <li>
+                <i class="fas fa-check"></i>
+                <strong>Real-time Alerts:</strong> Instant notifications of security events
+            </li>
+            <li>
+                <i class="fas fa-check"></i>
+                <strong>Account Recovery:</strong> Security questions protect account access
+            </li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

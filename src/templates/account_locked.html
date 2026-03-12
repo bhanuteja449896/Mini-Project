@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Account Locked - Security Lockout{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card locked-card">
+        <div class="auth-header locked">
+            <i class="fas fa-lock-open"></i>
+            <h2>Account Locked</h2>
+            <p>We Locked Your Account For Your Protection</p>
+        </div>
+
+        <div class="locked-info">
+            <div class="warning-box">
+                <i class="fas fa-shield-exclamation"></i>
+                <h3>Security Lockout Active</h3>
+                <p style="line-height: 1.6;">Your account has been temporarily locked due to multiple failed login attempts. This is a security feature to prevent unauthorized access to your account.</p>
+            </div>
+
+            <div class="lock-details">
+                <div class="detail-item">
+                    <i class="fas fa-user-circle"></i>
+                    <div>
+                        <strong style="display: block; color: var(--primary);">Username</strong>
+                        <span style="color: var(--text-secondary);">{{ user.username }}</span>
+                    </div>
+                </div>
+                <div class="detail-item">
+                    <i class="fas fa-at"></i>
+                    <div>
+                        <strong style="display: block; color: var(--primary);">Email</strong>
+                        <span style="color: var(--text-secondary);">{{ user.email }}</span>
+                    </div>
+                </div>
+                <div class="detail-item">
+                    <i class="fas fa-hourglass-end"></i>
+                    <div>
+                        <strong style="display: block; color: var(--primary);">Locked Since</strong>
+                        <span style="color: var(--text-secondary);">{{ user.locked_at.strftime('%B %d, %Y • %H:%M:%S') if user.locked_at else 'Unknown' }}</span>
+                    </div>
+                </div>
+                <div class="detail-item">
+                    <i class="fas fa-exclamation-circle" style="color: #ef4444;"></i>
+                    <div>
+                        <strong style="display: block; color: var(--primary);">Failed Attempts</strong>
+                        <span style="color: #ef4444; font-weight: 700;">{{ user.failed_attempts }} out of 3</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="unlock-options" style="margin-top: 2.5rem;">
+                <h3 style="text-align: center; margin-bottom: 1rem; color: var(--primary);">
+                    <i class="fas fa-magic" style="color: var(--accent);"></i>
+                    How to Regain Access
+                </h3>
+                <p style="text-align: center; color: var(--text-secondary); margin-bottom: 1.5rem;">Choose one of the following methods to unlock your account:</p>
+
+                <div class="option-cards">
+                    <a href="{{ url_for('unlock_account') }}" class="option-card">
+                        <i class="fas fa-question-circle"></i>
+                        <h4>Answer Security Questions</h4>
+                        <p>Verify your identity using the recovery questions you set up during registration</p>
+                    </a>
+
+                    <a href="{{ url_for('forgot_password') }}" class="option-card">
+                        <i class="fas fa-key"></i>
+                        <h4>Reset Password</h4>
+                        <p>Get a password reset link sent to your registered email address</p>
+                    </a>
+                </div>
+            </div>
+
+            <div class="info-box" style="margin-top: 2rem;">
+                <i class="fas fa-info-circle"></i>
+                <p>💡 Pro Tip: If you've forgotten your security answers or can't access your email, please contact our support team for assistance.</p>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+            <a href="{{ url_for('login') }}" class="link">
+                <i class="fas fa-arrow-left"></i>
+                <span>Return to Login</span>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
