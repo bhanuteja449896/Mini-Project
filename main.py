@@ -6,7 +6,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash
 from models import db, User, LoginAttempt, Alert, UnlockRequest
-from email_service import mail, send_alert_email, send_welcome_email
+from email_service import mail, send_alert_email, send_welcome_email, send_otp_email
 from dotenv import load_dotenv
 import json
 import logging
@@ -141,7 +141,7 @@ def register():
     """User registration"""
     if request.method == 'POST':
         username = request.form.get('username')
-        email = request.form.get('email')
+        email = request.form.get('email', '').lower().strip()
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
         security_question = request.form.get('security_question')
@@ -200,7 +200,7 @@ def login():
         session['captcha_answers'] = captcha_answers
     
     if request.method == 'POST':
-        email = request.form.get('email')
+        email = request.form.get('email', '').lower().strip()
         password = request.form.get('password')
         captcha_responses = []
         if show_captcha:
@@ -328,16 +328,21 @@ def mark_alert_read(alert_id):
 def forgot_password():
     """Password recovery using security questions"""
     if request.method == 'POST':
-        email = request.form.get('email')
+        email = request.form.get('email', '').lower().strip()
         security_answer = request.form.get('security_answer')
         new_password = request.form.get('new_password')
         confirm_password = request.form.get('confirm_password')
         
-        user = User.query.filter_by(email=email).first()
+        # Check if we're in step 2 or 3 (use stored user_id from session)
+        if session.get('reset_user_id'):
+            user = User.query.get(session.get('reset_user_id'))
+        else:
+            # Step 1: Look up user by email
+            user = User.query.filter_by(email=email).first()
         
         if not user:
             flash('Email not found!', 'danger')
-            return render_template('forgot_password.html')
+            return render_template('forgot_password.html', step=1)
         
         # Store user_id in session for step 2
         if 'step' not in session:
@@ -391,14 +396,23 @@ def forgot_password():
 def unlock_account():
     """Request account unlock"""
     if request.method == 'POST':
-        email = request.form.get('email')
+        # Debug: Log all form data
+        logger.info(f"Form data: {dict(request.form)}")
+        logger.info(f"Session data: unlock_user_id={session.get('unlock_user_id')}, unlock_step={session.get('unlock_step')}")
+        
+        email = request.form.get('email', '').lower().strip()
         security_answer = request.form.get('security_answer')
         
-        user = User.query.filter_by(email=email).first()
+        # Check if we're in step 2 or 3 (use stored user_id from session)
+        if session.get('unlock_user_id'):
+            user = User.query.get(session.get('unlock_user_id'))
+        else:
+            # Step 1: Look up user by email
+            user = User.query.filter_by(email=email).first()
         
         if not user:
             flash('Email not found!', 'danger')
-            return render_template('unlock_account.html')
+            return render_template('unlock_account.html', step=1)
         
         if not user.is_locked:
             flash('Your account is not locked.', 'info')
@@ -414,6 +428,10 @@ def unlock_account():
         
         # Verify security answer
         if session.get('unlock_step') == 1:
+            if not security_answer:
+                flash('Please enter your security answer!', 'danger')
+                return render_template('unlock_account.html', step=2, security_question=user.security_question)
+            
             if user.check_security_answer(security_answer):
                 # Generate verification code
                 verification_code = ''.join(random.choices(string.digits, k=6))
@@ -431,14 +449,24 @@ def unlock_account():
                 session['unlock_step'] = 2
                 session['verification_code'] = verification_code
                 
-                # In production, send this code via SMS/email
-                flash(f'Verification code: {verification_code} (In production, this would be sent to your phone/email)', 'info')
+                # Send OTP via email
+                try:
+                    if send_otp_email(user.email, verification_code, user.username):
+                        flash('✅ Verification code sent to your email!', 'success')
+                    else:
+                        flash('⚠️ Could not send verification code to email. Code displayed below for testing.', 'warning')
+                        flash(f'Test Code: {verification_code}', 'info')
+                except Exception as e:
+                    logger.error(f"OTP email error: {str(e)}")
+                    flash('⚠️ Email service unavailable. Code displayed below for testing.', 'warning')
+                    flash(f'Test Code: {verification_code}', 'info')
+                
                 return render_template('unlock_account.html', step=3)
             else:
                 flash('Incorrect security answer!', 'danger')
                 session.pop('unlock_user_id', None)
                 session.pop('unlock_step', None)
-                return redirect(url_for('unlock_account'))
+                return render_template('unlock_account.html', step=1)
         
         # Verify code and unlock
         if session.get('unlock_step') == 2:
@@ -460,7 +488,7 @@ def unlock_account():
                 return redirect(url_for('login'))
             else:
                 flash('Invalid verification code!', 'danger')
-                return render_template('unlock_account.html', step=3)
+                return render_template('unlock_account.html', step=3, verification_code=None)
     
     # Clear any existing unlock session
     session.pop('unlock_user_id', None)

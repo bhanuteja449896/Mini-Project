@@ -258,3 +258,106 @@ def send_welcome_email(user_email, username):
     except Exception as e:
         logger.error(f"Failed to send welcome email to {user_email}: {str(e)}")
         return False
+
+
+def send_otp_email(user_email, otp_code, username="User"):
+    """
+    Send OTP (One-Time Password) verification code via email
+    
+    Args:
+        user_email: User's email address
+        otp_code: The OTP verification code
+        username: User's username for personalization
+    """
+    try:
+        sender_email = os.getenv('MAIL_SENDER_EMAIL', os.getenv('MAIL_USERNAME', 'noreply@security.com'))
+        sender_name = os.getenv('MAIL_SENDER_NAME', 'Security System')
+        
+        body = f"""
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; background: #f3f4f6; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .card {{ background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden; }}
+                .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }}
+                .header h2 {{ margin: 0; font-size: 24px; }}
+                .content {{ padding: 30px; }}
+                .otp-box {{ 
+                    background: #f0f4ff; 
+                    border: 2px solid #667eea; 
+                    border-radius: 8px; 
+                    padding: 20px; 
+                    text-align: center; 
+                    margin: 20px 0;
+                }}
+                .otp-code {{ 
+                    font-size: 32px; 
+                    font-weight: bold; 
+                    letter-spacing: 5px; 
+                    color: #667eea;
+                    font-family: monospace;
+                }}
+                .otp-expiry {{ 
+                    color: #ef4444; 
+                    font-size: 14px; 
+                    margin-top: 10px;
+                    font-weight: bold;
+                }}
+                .info-text {{ color: #666; font-size: 14px; line-height: 1.6; }}
+                .warning {{ 
+                    background: #fef3c7; 
+                    border: 1px solid #f59e0b; 
+                    border-radius: 5px; 
+                    padding: 12px; 
+                    margin: 15px 0;
+                    color: #78350f;
+                }}
+                .footer {{ background: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #999; border-top: 1px solid #e5e7eb; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="card">
+                    <div class="header">
+                        <h2>🔐 Your Verification Code</h2>
+                    </div>
+                    <div class="content">
+                        <p class="info-text">Hi {username},</p>
+                        <p class="info-text">You requested to unlock your account. Use the verification code below to complete the process:</p>
+                        
+                        <div class="otp-box">
+                            <div class="otp-code">{otp_code}</div>
+                            <div class="otp-expiry">⏱️ Valid for 15 minutes</div>
+                        </div>
+                        
+                        <div class="warning">
+                            <strong>⚠️ Important Security Note:</strong> Never share this code with anyone. Our staff will never ask for this code.
+                        </div>
+                        
+                        <p class="info-text">If you did not request this code, you can safely ignore this email. Your account remains secure.</p>
+                    </div>
+                    <div class="footer">
+                        <p>&copy; 2026 Security System | All rights reserved</p>
+                        <p>If you need help, contact our support team</p>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        msg = Message(
+            subject="🔐 Your Account Unlock Verification Code",
+            recipients=[user_email],
+            html=body,
+            sender=(sender_name, sender_email)
+        )
+        
+        mail.send(msg)
+        logger.info(f"OTP email sent to {user_email}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Failed to send OTP email to {user_email}: {str(e)}")
+        return False

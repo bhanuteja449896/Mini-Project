@@ -50,6 +50,8 @@ class User(UserMixin, db.Model):
     
     def check_security_answer(self, answer):
         """Check if provided security answer matches hash"""
+        if not answer:
+            return False
         return check_password_hash(self.security_answer_hash, answer.lower())
     
     def lock_account(self):
